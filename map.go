@@ -128,27 +128,37 @@ func (self *VerifiableMap) Get(key []byte, treeSize int64, factory VerifiableEnt
 
 // Set will set generate a map mutation to set the given value for the given key.
 // While this will return quickly, the change will be reflected asynchronously in the map.
-func (self *VerifiableMap) Set(key []byte, value UploadableEntry) error {
+func (self *VerifiableMap) Set(key []byte, value UploadableEntry) (*AddEntryResponse, error) {
 	data, err := value.DataForUpload()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	_, _, err = self.client.makeRequest("PUT", self.path+"/key/h/"+hex.EncodeToString(key)+value.Format(), data)
+	contents, _, err := self.client.makeRequest("PUT", self.path+"/key/h/"+hex.EncodeToString(key)+value.Format(), data)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	var aer addEntryResponse
+	err = json.Unmarshal(contents, &aer)
+	if err != nil {
+		return nil, err
+	}
+	return &AddEntryResponse{EntryLeafHash: aer.Hash}, nil
 }
 
 // Delete will set generate a map mutation to delete the value for the given key. Calling Delete
 // is equivalent to calling Set with an empty value.
 // While this will return quickly, the change will be reflected asynchronously in the map.
-func (self *VerifiableMap) Delete(key []byte) error {
-	_, _, err := self.client.makeRequest("DELETE", self.path+"/key/h/"+hex.EncodeToString(key), nil)
+func (self *VerifiableMap) Delete(key []byte) (*AddEntryResponse, error) {
+	contents, _, err := self.client.makeRequest("DELETE", self.path+"/key/h/"+hex.EncodeToString(key), nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	var aer addEntryResponse
+	err = json.Unmarshal(contents, &aer)
+	if err != nil {
+		return nil, err
+	}
+	return &AddEntryResponse{EntryLeafHash: aer.Hash}, nil
 }
 
 // TreeHash returns map root hash for the map at the given tree size. Specify continusec.Head

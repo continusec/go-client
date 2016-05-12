@@ -412,7 +412,6 @@ func (self *VerifiableLog) FetchAndAuditLogEntries(prev *LogTreeHead, head *LogT
 		}
 		var firstHash []byte
 		for _, b := range p.AuditPath {
-			merkleTreeStack = append(merkleTreeStack, b)
 			if firstHash == nil {
 				firstHash = b
 			} else {
@@ -424,6 +423,9 @@ func (self *VerifiableLog) FetchAndAuditLogEntries(prev *LogTreeHead, head *LogT
 		}
 		if len(firstHash) != 32 {
 			return ErrVerificationFailed
+		}
+		for i := len(p.AuditPath) - 1; i >= 0; i-- {
+			merkleTreeStack = append(merkleTreeStack, p.AuditPath[i])
 		}
 	}
 	idx := prev.TreeSize
@@ -459,7 +461,7 @@ func (self *VerifiableLog) FetchAndAuditLogEntries(prev *LogTreeHead, head *LogT
 	}
 
 	headHash := merkleTreeStack[len(merkleTreeStack)-1]
-	for z := len(merkleTreeStack) - 2; z >= 0; z++ {
+	for z := len(merkleTreeStack) - 2; z >= 0; z-- {
 		headHash = NodeMerkleTreeHash(merkleTreeStack[z], headHash)
 	}
 

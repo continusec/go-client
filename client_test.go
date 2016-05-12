@@ -18,26 +18,52 @@ package continusec
 
 import (
 	"fmt"
+	mockserver "github.com/continusec/go-mock"
+	"strings"
 	"testing"
 )
 
-/*
-	client := NewClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6")
-	log := client.VerifiableLog("fdsfasdfas")
+func TestStuff(t *testing.T) {
+	go mockserver.RunMockServer(":8080", &mockserver.ProxyAndRecordHandler{
+		Host:          "https://api.continusec.com",
+		InHeaders:     []string{"Authorization"},
+		OutHeaders:    []string{"Content-Type", "X-Verified-TreeSize", "X-Verified-Proof"},
+		Dir:           "responses",
+		FailOnMissing: false,
+	})
 
-create
-
-	log := client.VerifiableLog("fdsfasdfas")
-
-	err := log.Create()
-	if err != nil {
-		if err != ErrObjectConflict {
-			t.Fatal(err)
-		}
+	client := NewClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6").WithBaseURL("http://localhost:8080")
+	log := client.VerifiableLog("newtestlog")
+	_, err := log.TreeHead(Head)
+	if err != ErrNotFound {
+		t.Fatal(err)
 	}
 
+	client = NewClient("7981306761429961588", "wrongcred").WithBaseURL("http://localhost:8080")
+	log = client.VerifiableLog("newtestlog")
+	_, err = log.TreeHead(Head)
+	if err != ErrNotAuthorized {
+		t.Fatal(err)
+	}
 
-add
+	client = NewClient("wrongaccount", "wrongcred").WithBaseURL("http://localhost:8080")
+	log = client.VerifiableLog("newtestlog")
+	_, err = log.TreeHead(Head)
+	if err != ErrNotFound {
+		t.Fatal(err)
+	}
+
+	client = NewClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6").WithBaseURL("http://localhost:8080")
+	log = client.VerifiableLog("newtestlog")
+	err = log.Create()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = log.Create()
+	if err != ErrObjectConflict {
+		t.Fatal(err)
+	}
 
 	_, err = log.Add(&RawDataEntry{RawBytes: []byte("foo")})
 	if err != nil {
@@ -54,233 +80,361 @@ add
 		t.Fatal(err)
 	}
 
-block
-
-
 	addResp, err := log.Add(&RawDataEntry{RawBytes: []byte("foo")})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	head, err := log.BlockUntilPresent(addResp)
+	_, err = log.BlockUntilPresent(addResp)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-check consistency
-
-
-	h2, err := log.FetchVerifiedTreeHead(h1)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-prove inclusion
 
 	head, err := log.TreeHead(Head)
 	if err != nil {
 		t.Fatal(err)
 	}
+	if head.TreeSize != 3 {
+		t.Fatal(head.TreeSize)
+	}
 
-	inclProof, err := log.InclusionProof(head.TreeSize, &RawDataEntry{RawBytes: []byte("foo")})
+	for i := 0; i < 100; i++ {
+		_, err = log.Add(&RawDataEntry{RawBytes: []byte(fmt.Sprintf("foo-%d", i))})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	head103, err := log.FetchVerifiedTreeHead(head)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if head103.TreeSize != 103 {
+		t.Fatal(err)
+	}
+
+	inclProof, err := log.InclusionProof(head103.TreeSize, &RawDataEntry{RawBytes: []byte("foo27")})
+	if err != ErrNotFound {
+		t.Fatal(err)
+	}
+
+	inclProof, err = log.InclusionProof(head103.TreeSize, &RawDataEntry{RawBytes: []byte("foo-27")})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = inclProof.Verify(head103)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	err = inclProof.Verify(head)
+	if err != ErrVerificationFailed {
+		t.Fatal(err)
+	}
+
+	head50, err := log.TreeHead(50)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-prove inclusion where supplied
-
-	inclProof, err := log.InclusionProof(1, &RawDataEntry{RawBytes: []byte("foo")})
+	cons, err := log.ConsistencyProof(head50.TreeSize, head103.TreeSize)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	h2, err := log.TreeHead(Head)
+	err = cons.Verify(head50, head103)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	h1, err := log.VerifySuppliedInclusionProof(h2, inclProof)
+	err = cons.Verify(head, head103)
+	if err != ErrVerificationFailed {
+		t.Fatal(err)
+	}
+
+	inclProof, err = log.InclusionProof(10, &RawDataEntry{RawBytes: []byte("foo")})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-
-
-
-*/
-
-func TestStuff(t *testing.T) {
-	client := NewClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6")
-	log := client.VerifiableLog("fdsfasdfas")
-
-	/*	inclProof, err := log.InclusionProof(1, &RawDataEntry{RawBytes: []byte("foo")})
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		h2, err := log.TreeHead(Head)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		h1, err := log.VerifySuppliedInclusionProof(h2, inclProof)
-		if err != nil {
-			t.Fatal(err)
-		}*/
-
-	head, err := log.FetchVerifiedTreeHead(ZeroLogTreeHead)
+	h10, err := log.VerifySuppliedInclusionProof(head103, inclProof)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = log.FetchAndAuditLogEntries(ZeroLogTreeHead, head, JsonEntryFactory, func(idx int64, entry VerifiableEntry) error {
-		dat, err := entry.Data()
+	if h10.TreeSize != 10 {
+		t.Fatal(10)
+	}
+
+	count := 0
+	err = log.FetchAndAuditLogEntries(ZeroLogTreeHead, head103, RawDataEntryFactory, func(idx int64, entry VerifiableEntry) error {
+		_, err := entry.Data()
 		if err != nil {
 			return err
 		}
-		t.Log(fmt.Sprintf("idx: %d, len: %d", idx, len(dat)))
+		count += 1
 		return nil
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	/*
-
-		inclProof, err := log.InclusionProof(2, &RawDataEntry{RawBytes: []byte("foo")})
-		if err != nil {
-			t.Fatal(err)
-		}
-
-
-		head, err := log.TreeHead(Head)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		inclusionHead, err := log.TreeHead(inclProof.TreeSize)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if inclusionHead.TreeSize < head.TreeSize {
-
-
-
-		err = inclProof.Verify(head)
-		if err != nil {
-			t.Fatal(err)
-		}
-	*/
-
-	/*	err := log.Create()
-		if err != nil {
-			if err != ErrObjectConflict {
-				t.Fatal(err)
-			}
-		}
-
-		_, err = log.Add(&JsonEntry{JsonBytes: []byte("{\"name\":\"adam\",\"ssn\":123.45}")})
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		addResp, err := log.Add(&RedactableJsonEntry{JsonBytes: []byte("{\"name\":\"adam\",\"ssn\":123.45}")})
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		_, err = log.Add(&RawDataEntry{RawBytes: []byte("foo")})
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		head, err := log.BlockUntilPresent(addResp)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		inclProof, err := log.InclusionProof(head.TreeSize, addResp)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		err = inclProof.Verify(head)
-		if err != nil {
-			t.Fatal(err)
-		}*/
-
-	/*t.Log("hello")
-
-	client := NewClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6")
-	log := client.VerifiableLog("gotest")
-
-		err := log.Create()
-		if err != nil {
-			t.Log("Err:", err)
-		}
-		_, err = log.Add([]byte("foo"))
-		if err != nil {
-			t.Log("Err:", err)
-		}
-		_, err = log.AddJson([]byte(`{"name": "ado", "ssn": 123.45}`))
-		if err != nil {
-			t.Log("Err:", err)
-		}
-		_, err = log.AddRedactibleJson([]byte(`{"name": "ado", "ssn": 123.45}`))
-		if err != nil {
-			t.Log("Err:", err)
-		}
-
-
-	treeSize, rootHash, err := log.TreeHash(Head)
-	if err != nil {
-		t.Log("Err:", err)
-	}
-	t.Log("Size", treeSize)
-
-	data, err := log.GetEntry(0)
-	if err != nil {
-		t.Log("Err:", err)
-	}
-	t.Log(string(data.Data))
-
-	d1, err := log.GetJsonEntry(1)
-	if err != nil {
-		t.Log("Err:", err)
-	}
-	t.Log(string(d1.Data))
-
-	d1, err = log.GetJsonEntry(2)
-	if err != nil {
-		t.Log("Err:", err)
-	}
-	t.Log(string(d1.Data))
-
-	d2, err := log.GetRedactedJsonEntry(2)
-	if err != nil {
-		t.Log("Err:", err)
-	}
-	x, err := d2.ShedRedacted()
-	if err != nil {
-		t.Log("Err:", err)
-	}
-	t.Log(string(x))
-
-	bs, err := d2.BytesForHash()
-	if err != nil {
-		t.Log("Err:", err)
-	}
-	mtl := LeafMerkleTreeHash(bs)
-	leafIdx, auditPath, err := log.InclusionProof(treeSize, mtl)
-	if err != nil {
-		t.Log("Err:", err)
+	if count != 103 {
+		t.Fatal(err)
 	}
 
-	t.Log("Verify result:", VerifyLogInclusionProof(leafIdx, treeSize, mtl, rootHash, auditPath))*/
+	head1, err := log.TreeHead(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count = 0
+	err = log.FetchAndAuditLogEntries(head1, head103, JsonEntryFactory, func(idx int64, entry VerifiableEntry) error {
+		_, err := entry.Data()
+		if err != nil {
+			return err
+		}
+		count += 1
+		return nil
+	})
+	if err != ErrNotAllEntriesReturned {
+		t.Fatal(err)
+	}
+	if count != 0 {
+		t.Fatal(count)
+	}
+
+	head3, err := log.TreeHead(3)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count = 0
+	err = log.FetchAndAuditLogEntries(head1, head3, JsonEntryFactory, func(idx int64, entry VerifiableEntry) error {
+		_, err := entry.Data()
+		if err != nil {
+			return err
+		}
+		count += 1
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Fatal(count)
+	}
+
+	count = 0
+	err = log.FetchAndAuditLogEntries(head50, head103, RawDataEntryFactory, func(idx int64, entry VerifiableEntry) error {
+		_, err := entry.Data()
+		if err != nil {
+			return err
+		}
+		count += 1
+		return nil
+	})
+	if count != 53 {
+		t.Fatal(count)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	inclProof, err = log.InclusionProof(head103.TreeSize, &JsonEntry{JsonBytes: []byte("{    \"ssn\":  123.4500 ,   \"name\" :  \"adam\"}")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = inclProof.Verify(head103)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	redEnt, err := log.Entry(2, RedactedJsonEntryFactory)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dd, err := redEnt.Data()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if strings.Index(string(dd), "ssn") >= 0 {
+		t.Fatal(-1)
+	}
+
+	if strings.Index(string(dd), "adam") < 0 {
+		t.Fatal(-1)
+	}
+
+	inclProof, err = log.InclusionProof(head103.TreeSize, redEnt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = inclProof.Verify(head103)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	client = NewClient("7981306761429961588", "allseeing").WithBaseURL("http://localhost:8080")
+	log = client.VerifiableLog("newtestlog")
+
+	redEnt, err = log.Entry(2, RedactedJsonEntryFactory)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dd, err = redEnt.Data()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if strings.Index(string(dd), "123.45") < 0 {
+		t.Fatal(-1)
+	}
+
+	if strings.Index(string(dd), "adam") < 0 {
+		t.Fatal(-1)
+	}
+
+	inclProof, err = log.InclusionProof(head103.TreeSize, redEnt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = inclProof.Verify(head103)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	vmap := client.VerifiableMap("nnewtestmap")
+	_, err = vmap.TreeHead(Head)
+	if err != ErrNotFound {
+		t.Fatal(err)
+	}
+
+	err = vmap.Create()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = vmap.Create()
+	if err != ErrObjectConflict {
+		t.Fatal(err)
+	}
+
+	_, err = vmap.Set([]byte("foo"), &RawDataEntry{RawBytes: []byte("foo")})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = vmap.Set([]byte("fiz"), &JsonEntry{JsonBytes: []byte("{\"name\":\"adam\",\"ssn\":123.45}")})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	waitResp, err := vmap.Set([]byte("foz"), &RedactableJsonEntry{JsonBytes: []byte("{\"name\":\"adam\",\"ssn\":123.45}")})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for i := 0; i < 100; i++ {
+		_, err = vmap.Set([]byte(fmt.Sprintf("foo%d", i)), &RawDataEntry{RawBytes: []byte(fmt.Sprintf("fooval%d", i))})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	_, err = vmap.Delete([]byte("foo"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = vmap.Delete([]byte("foodddd"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = vmap.Delete([]byte("foo27"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	mlHead, err := vmap.MutationLog().BlockUntilPresent(waitResp)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if mlHead.TreeSize != 106 {
+		t.Fatal(-2)
+	}
+
+	mrHead, err := vmap.BlockUntilSize(mlHead.TreeSize)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if mrHead.MutationLogTreeHead.TreeSize != 106 {
+		t.Fatal(err)
+	}
+
+	entryResp, err := vmap.Get([]byte("foo"), mrHead.MutationLogTreeHead.TreeSize, RawDataEntryFactory)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = entryResp.Verify(mrHead)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dd, err = entryResp.Value.Data()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(dd) > 0 {
+		t.Fatal(-10)
+	}
+
+	entryResp, err = vmap.Get([]byte("foo-29"), mrHead.MutationLogTreeHead.TreeSize, RawDataEntryFactory)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = entryResp.Verify(mrHead)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dd, err = entryResp.Value.Data()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(dd) > 0 {
+		t.Fatal(-10)
+	}
+
+	entryResp, err = vmap.Get([]byte("foo29"), mrHead.MutationLogTreeHead.TreeSize, RawDataEntryFactory)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = entryResp.Verify(mrHead)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dd, err = entryResp.Value.Data()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if string(dd) != "fooval29" {
+		t.Fatal(-10)
+	}
+
 }

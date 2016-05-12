@@ -47,7 +47,8 @@ var (
 
 	// ErrNotFound is returned when the request is understood and authorized, however the underlying
 	// map/log cannot be found. Check the name of the map/log and verify that you have already created it.
-	ErrNotFound = errors.New("Can't find log/map. Check the log/map is created.")
+	// This is also returned if an inclusion proof is requested for a non-existent element.
+	ErrNotFound = errors.New("Can't find log/map/entry. Check the log/map/entry is created.")
 
 	// Verification of proof failed.
 	ErrVerificationFailed = errors.New("ErrVerificationFailed")
