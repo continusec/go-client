@@ -18,18 +18,17 @@ package continusec
 
 import (
 	"fmt"
-	mockserver "github.com/continusec/go-mock"
 	"strings"
 	"testing"
 )
 
 func TestStuff(t *testing.T) {
-	go mockserver.RunMockServer(":8080", &mockserver.ProxyAndRecordHandler{
+	go RunMockServer(":8080", &ProxyAndRecordHandler{
 		Host:          "https://api.continusec.com",
 		InHeaders:     []string{"Authorization"},
 		OutHeaders:    []string{"Content-Type", "X-Verified-TreeSize", "X-Verified-Proof"},
 		Dir:           "responses",
-		FailOnMissing: false,
+		FailOnMissing: true,
 	})
 
 	client := NewClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6").WithBaseURL("http://localhost:8080")
@@ -436,5 +435,4 @@ func TestStuff(t *testing.T) {
 	if string(dd) != "fooval29" {
 		t.Fatal(-10)
 	}
-
 }
