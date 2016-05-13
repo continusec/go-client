@@ -23,7 +23,7 @@ import (
 )
 
 func TestStuff(t *testing.T) {
-	go RunMockServer(":8080", &ProxyAndRecordHandler{
+	RunMockServer(":8080", &ProxyAndRecordHandler{
 		Host:          "https://api.continusec.com",
 		InHeaders:     []string{"Authorization"},
 		OutHeaders:    []string{"Content-Type", "X-Verified-TreeSize", "X-Verified-Proof"},

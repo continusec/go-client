@@ -91,6 +91,11 @@ func LoadSavedIfThere(path string, seq int) (*SavedPair, error) {
 
 func saveRequest(r *http.Request, altHost string, headerFilter []string) (*SavedRequest, error) {
 	url := r.URL.String()
+	if strings.HasPrefix(url, "http://") {
+		url = url[7:]
+	} else if strings.HasPrefix(url, "https://") {
+		url = url[8:]
+	}
 	url = altHost + url[strings.Index(url, "/"):]
 
 	body, err := ioutil.ReadAll(r.Body)
