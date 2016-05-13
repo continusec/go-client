@@ -167,19 +167,19 @@ func sendSavedRequest(savedReq *SavedRequest, headerIn, headerOut []string) (*Sa
 func (self *ProxyAndRecordHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	canonReq, err := saveRequest(r, self.Host, self.InHeaders)
 	if err != nil {
-		fmt.Println("Error saving request:", err)
+		fmt.Println(self.Sequence, "Error saving request:", err)
 		return
 	}
 	savedPair, err := LoadSavedIfThere(self.Dir, self.Sequence)
 	if err != nil {
 		if self.FailOnMissing {
-			fmt.Println("Error loading response:", err)
+			fmt.Println(self.Sequence, "Error loading response:", err)
 			return
 		} else {
-			fmt.Println("Fetching", canonReq.URL)
+			fmt.Println(self.Sequence, "Fetching", canonReq.URL)
 			sr, err := sendSavedRequest(canonReq, self.InHeaders, self.OutHeaders)
 			if err != nil {
-				fmt.Println("Error receiving response:", err)
+				fmt.Println(self.Sequence, "Error receiving response:", err)
 				return
 			}
 			savedPair = &SavedPair{
@@ -188,15 +188,15 @@ func (self *ProxyAndRecordHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 			}
 			err = savedPair.Write(self.Dir, self.Sequence)
 			if err != nil {
-				fmt.Println("Error saving response:", err)
+				fmt.Println(self.Sequence, "Error saving response:", err)
 				return
 			}
 		}
 	} else {
-		fmt.Println("From cache", canonReq.URL)
+		fmt.Println(self.Sequence, "From cache", canonReq.URL)
 	}
 	if !savedPair.Request.Equals(canonReq) {
-		fmt.Println("Bad request, got", canonReq, "wanted", savedPair.Request)
+		fmt.Println(self.Sequence, "Bad request, got", canonReq, "wanted", savedPair.Request)
 
 		return
 	}
