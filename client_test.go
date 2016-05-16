@@ -114,7 +114,7 @@ func TestStuff(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = log.VerifyInclusionProof(head103, &RawDataEntry{RawBytes: []byte("foo27")})
+	err = log.VerifyInclusion(head103, &RawDataEntry{RawBytes: []byte("foo27")})
 	if err != ErrNotFound {
 		t.Fatal(err)
 	}
@@ -245,7 +245,7 @@ func TestStuff(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = log.VerifyInclusionProof(head103, &JsonEntry{JsonBytes: []byte("{    \"ssn\":  123.4500 ,   \"name\" :  \"adam\"}")})
+	err = log.VerifyInclusion(head103, &JsonEntry{JsonBytes: []byte("{    \"ssn\":  123.4500 ,   \"name\" :  \"adam\"}")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -268,7 +268,7 @@ func TestStuff(t *testing.T) {
 		t.Fatal(-1)
 	}
 
-	err = log.VerifyInclusionProof(head103, redEnt)
+	err = log.VerifyInclusion(head103, redEnt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -294,7 +294,7 @@ func TestStuff(t *testing.T) {
 		t.Fatal(-1)
 	}
 
-	err = log.VerifyInclusionProof(head103, redEnt)
+	err = log.VerifyInclusion(head103, redEnt)
 	if err != nil {
 		t.Fatal(err)
 	}

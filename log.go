@@ -120,7 +120,7 @@ func (self *VerifiableLog) TreeHead(treeSize int64) (*LogTreeHead, error) {
 // audit path which returns the corresponding leaf nodes that can be applied to the input
 // leaf hash to generate the root tree hash for the log.
 //
-// Most clients instead use VerifyInclusionProof which additionally verifies the returned proof.
+// Most clients instead use VerifyInclusion which additionally verifies the returned proof.
 func (self *VerifiableLog) InclusionProof(treeSize int64, leaf MerkleTreeLeaf) (*LogInclusionProof, error) {
 	mtlHash, err := leaf.LeafHash()
 	if err != nil {
@@ -143,9 +143,9 @@ func (self *VerifiableLog) InclusionProof(treeSize int64, leaf MerkleTreeLeaf) (
 	}, nil
 }
 
-// VerifyInclusionProof will fetch a proof the the specified MerkleTreeHash is included in the
+// VerifyInclusion will fetch a proof the the specified MerkleTreeHash is included in the
 // log and verify that it can produce the root hash in the specified LogTreeHead.
-func (self *VerifiableLog) VerifyInclusionProof(head *LogTreeHead, leaf MerkleTreeLeaf) error {
+func (self *VerifiableLog) VerifyInclusion(head *LogTreeHead, leaf MerkleTreeLeaf) error {
 	proof, err := self.InclusionProof(head.TreeSize, leaf)
 	if err != nil {
 		return err
@@ -204,9 +204,9 @@ func (self *VerifiableLog) ConsistencyProof(first, second int64) (*LogConsistenc
 	}, nil
 }
 
-// VerifyConsistencyProof takes two tree heads, retrieves a consistency proof, verifies it,
+// VerifyConsistency takes two tree heads, retrieves a consistency proof, verifies it,
 // and returns the result. The two tree heads may be in either order (even equal), but both must be greater than zero and non-nil.
-func (self *VerifiableLog) VerifyConsistencyProof(a, b *LogTreeHead) error {
+func (self *VerifiableLog) VerifyConsistency(a, b *LogTreeHead) error {
 	if a == nil || b == nil || a.TreeSize <= 0 || b.TreeSize <= 0 {
 		return ErrVerificationFailed
 	}
@@ -324,7 +324,7 @@ func (self *VerifiableLog) BlockUntilPresent(leaf MerkleTreeLeaf) (*LogTreeHead,
 		}
 		if lth.TreeSize > lastHead {
 			lastHead = lth.TreeSize
-			err = self.VerifyInclusionProof(lth, leaf)
+			err = self.VerifyInclusion(lth, leaf)
 			switch err {
 			case nil: // we found it
 				return lth, nil
@@ -381,7 +381,7 @@ func (self *VerifiableLog) VerifiedTreeHead(prev *LogTreeHead, treeSize int64) (
 	}
 
 	if prev != nil {
-		err = self.VerifyConsistencyProof(prev, head)
+		err = self.VerifyConsistency(prev, head)
 		if err != nil {
 			return nil, err
 		}

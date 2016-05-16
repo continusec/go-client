@@ -267,7 +267,7 @@ func (self *VerifiableMap) VerifiedMapState(prev *MapTreeState, treeSize int64) 
 	// If we have a previous state, then make sure both logs are consistent with it
 	if prev != nil {
 		// Make sure that the mutation log is consistent with what we had
-		err = self.MutationLog().VerifyConsistencyProof(&prev.MapTreeHead.MutationLogTreeHead,
+		err = self.MutationLog().VerifyConsistency(&prev.MapTreeHead.MutationLogTreeHead,
 			&mapHead.MutationLogTreeHead)
 		if err != nil {
 			return nil, err
@@ -285,7 +285,7 @@ func (self *VerifiableMap) VerifiedMapState(prev *MapTreeState, treeSize int64) 
 	}
 
 	// And make sure we are in it
-	err = self.TreeHeadLog().VerifyInclusionProof(thlth, mapHead)
+	err = self.TreeHeadLog().VerifyInclusion(thlth, mapHead)
 	if err != nil {
 		return nil, err
 	}
