@@ -343,11 +343,11 @@ func (self *VerifiableLog) BlockUntilPresent(leaf MerkleTreeLeaf) (*LogTreeHead,
 	}
 }
 
-// VerifyLatestTreeHead calls VerifyTreeHead() with Head to fetch the latest tree head,
+// VerifiedLatestTreeHead calls VerifiedTreeHead() with Head to fetch the latest tree head,
 // and additonally verifies that it is newer than the previously passed tree head.
 // For first use, pass nil to skip consistency checking.
-func (self *VerifiableLog) VerifyLatestTreeHead(prev *LogTreeHead) (*LogTreeHead, error) {
-	head, err := self.VerifyTreeHead(prev, Head)
+func (self *VerifiableLog) VerifiedLatestTreeHead(prev *LogTreeHead) (*LogTreeHead, error) {
+	head, err := self.VerifiedTreeHead(prev, Head)
 	if err != nil {
 		return nil, err
 	}
@@ -364,12 +364,12 @@ func (self *VerifiableLog) VerifyLatestTreeHead(prev *LogTreeHead) (*LogTreeHead
 	return head, nil
 }
 
-// VerifyTreeHead is a utility method to fetch a LogTreeHead and verifies that it is consistent with
+// VerifiedTreeHead is a utility method to fetch a LogTreeHead and verifies that it is consistent with
 // a tree head earlier fetched and persisted. For first use, pass nil for prev, which will
 // bypass consistency proof checking. Tree size may be older or newer than the previous head value.
 //
 // Clients typically use VerifyLatestTreeHead().
-func (self *VerifiableLog) VerifyTreeHead(prev *LogTreeHead, treeSize int64) (*LogTreeHead, error) {
+func (self *VerifiableLog) VerifiedTreeHead(prev *LogTreeHead, treeSize int64) (*LogTreeHead, error) {
 	// special case returning the value we already have
 	if treeSize != 0 && prev != nil && prev.TreeSize == treeSize {
 		return prev, nil
@@ -397,7 +397,7 @@ func (self *VerifiableLog) VerifyTreeHead(prev *LogTreeHead, treeSize int64) (*L
 // Upon success, the LogTreeHead returned is the one used to verify the inclusion proof - it may be newer or older than the one passed in.
 // In either case, it will have been verified as consistent.
 func (self *VerifiableLog) VerifySuppliedInclusionProof(prev *LogTreeHead, proof *LogInclusionProof) (*LogTreeHead, error) {
-	headForInclProof, err := self.VerifyTreeHead(prev, proof.TreeSize)
+	headForInclProof, err := self.VerifiedTreeHead(prev, proof.TreeSize)
 	if err != nil {
 		return nil, err
 	}

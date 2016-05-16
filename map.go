@@ -279,7 +279,7 @@ func (self *VerifiableMap) VerifiedMapState(prev *MapTreeState, treeSize int64) 
 	if prev != nil {
 		prevThlth = &prev.TreeHeadLogTreeHead
 	}
-	thlth, err := self.TreeHeadLog().VerifyLatestTreeHead(prevThlth)
+	thlth, err := self.TreeHeadLog().VerifiedLatestTreeHead(prevThlth)
 	if err != nil {
 		return nil, err
 	}

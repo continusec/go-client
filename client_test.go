@@ -105,7 +105,7 @@ func TestStuff(t *testing.T) {
 		}
 	}
 
-	head103, err := log.VerifyTreeHead(head, Head)
+	head103, err := log.VerifiedTreeHead(head, Head)
 	if err != nil {
 		t.Fatal(err)
 	}
