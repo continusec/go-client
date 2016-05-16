@@ -19,6 +19,7 @@ package continusec
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"github.com/continusec/objecthash"
@@ -317,13 +318,13 @@ func (self *MapTreeHead) TreeSize() int64 {
 }
 
 // LeafHash allows for this MapTreeHead to implement MerkleTreeLeaf which makes it
-// convenient for use with inclusioon proof checks.
+// convenient for use with inclusion proof checks.
 func (self *MapTreeHead) LeafHash() ([]byte, error) {
 	oh, err := objecthash.ObjectHash(map[string]interface{}{
-		"map_hash": self.RootHash,
+		"map_hash": base64.StdEncoding.EncodeToString(self.RootHash), // Our hashes are encoded as base64 in JSON, so use this as input to objecthash
 		"mutation_log": map[string]interface{}{
-			"tree_size": self.TreeSize(),
-			"tree_hash": self.MutationLogTreeHead.RootHash,
+			"tree_size": float64(self.TreeSize()),                                             // JSON knows only numbers, so sadly we pretend to be a float
+			"tree_hash": base64.StdEncoding.EncodeToString(self.MutationLogTreeHead.RootHash), // Our hashes are encoded as base64 in JSON, so use this as input to objecthash
 		},
 	})
 	if err != nil {

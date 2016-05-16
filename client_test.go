@@ -426,4 +426,36 @@ func TestStuff(t *testing.T) {
 	if string(dd) != "fooval29" {
 		t.Fatal(-10)
 	}
+
+	mapState106, err := vmap.VerifiedLatestMapState(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = vmap.VerifiedMapState(mapState106, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	mapState2, err := vmap.VerifiedMapState(mapState106, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if mapState2.TreeSize() != 2 {
+		t.Fatal(2)
+	}
+
+	val, err := vmap.VerifiedGet([]byte("foo"), mapState2, RawDataEntryFactory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dd, err = val.Data()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(dd) != "foo" {
+		t.Fatal(3)
+	}
+
 }
