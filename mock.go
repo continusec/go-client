@@ -213,15 +213,3 @@ func (self *ProxyAndRecordHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 func RunMockServer(hostport string, pr *ProxyAndRecordHandler) {
 	http.ListenAndServe(hostport, pr)
 }
-
-/*
-func main() {
-	http.ListenAndServe(":8080", &ProxyAndRecordHandler{
-		Host:          "https://api.continusec.com",
-		InHeaders:     []string{"Authorization"},
-		OutHeaders:    []string{"Content-Type", "X-Verified-TreeSize", "X-Verified-Proof"},
-		Dir:           "responses",
-		FailOnMissing: false,
-	})
-}
-*/

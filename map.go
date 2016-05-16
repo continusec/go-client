@@ -230,7 +230,7 @@ func (self *VerifiableMap) BlockUntilSize(treeSize int64) (*MapTreeHead, error) 
 	}
 }
 
-// VerifiedLatestMapState fetches the latest MapTreeHead, verifies it is consistent with,
+// VerifiedLatestMapState fetches the latest MapTreeState, verifies it is consistent with,
 // and newer than, any previously passed state.
 func (self *VerifiableMap) VerifiedLatestMapState(prev *MapTreeState) (*MapTreeState, error) {
 	head, err := self.VerifiedMapState(prev, Head)
@@ -256,7 +256,7 @@ func (self *VerifiableMap) VerifiedLatestMapState(prev *MapTreeState) (*MapTreeS
 // Note that the TreeHeadLogTreeHead returned may differ between calls, even for the same treeSize,
 // as all future LogTreeHeads can also be proven to contain the MapTreeHead.
 //
-// Typical clients that only need to access current data will instead use VerifyLatestMapState()
+// Typical clients that only need to access current data will instead use VerifiedLatestMapState()
 func (self *VerifiableMap) VerifiedMapState(prev *MapTreeState, treeSize int64) (*MapTreeState, error) {
 	if treeSize != 0 && prev != nil && prev.TreeSize() == treeSize {
 		return prev, nil
