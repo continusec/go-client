@@ -258,6 +258,10 @@ func (self *VerifiableMap) VerifiedLatestMapState(prev *MapTreeState) (*MapTreeS
 //
 // Typical clients that only need to access current data will instead use VerifyLatestMapState()
 func (self *VerifiableMap) VerifiedMapState(prev *MapTreeState, treeSize int64) (*MapTreeState, error) {
+	if treeSize != 0 && prev != nil && prev.TreeSize() == treeSize {
+		return prev, nil
+	}
+
 	// Get latest map head
 	mapHead, err := self.TreeHead(treeSize)
 	if err != nil {

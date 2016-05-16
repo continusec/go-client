@@ -184,7 +184,7 @@ func (self *VerifiableLog) InclusionProofByIndex(treeSize, leafIndex int64) (*Lo
 }
 
 // ConsistencyProof returns an audit path which contains the set of Merkle Subtree hashes
-// that demonstrate how to root hash is calculated for both the first and second tree sizes.
+// that demonstrate how the root hash is calculated for both the first and second tree sizes.
 //
 // Most clients instead use VerifyInclusionProof which additionally verifies the returned proof.
 func (self *VerifiableLog) ConsistencyProof(first, second int64) (*LogConsistencyProof, error) {
@@ -344,7 +344,7 @@ func (self *VerifiableLog) BlockUntilPresent(leaf MerkleTreeLeaf) (*LogTreeHead,
 }
 
 // VerifiedLatestTreeHead calls VerifiedTreeHead() with Head to fetch the latest tree head,
-// and additonally verifies that it is newer than the previously passed tree head.
+// and additionally verifies that it is newer than the previously passed tree head.
 // For first use, pass nil to skip consistency checking.
 func (self *VerifiableLog) VerifiedLatestTreeHead(prev *LogTreeHead) (*LogTreeHead, error) {
 	head, err := self.VerifiedTreeHead(prev, Head)
