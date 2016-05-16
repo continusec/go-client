@@ -97,6 +97,8 @@ func parseHeadersForProof(headers http.Header) ([][]byte, error) {
 
 // Get will return the value for the given key at the given treeSize. Pass continusec.Head
 // to always get the latest value. factory is normally one of RawDataEntryFactory, JsonEntryFactory or RedactedJsonEntryFactory.
+//
+// Clients normally call VerifiedGet() with a MapTreeHead returned by VerifiedLatestMapState
 func (self *VerifiableMap) Get(key []byte, treeSize int64, factory VerifiableEntryFactory) (*MapInclusionProof, error) {
 	value, headers, err := self.client.makeRequest("GET", self.path+fmt.Sprintf("/tree/%d/key/h/%s%s", treeSize, hex.EncodeToString(key), factory.Format()), nil)
 	if err != nil {
@@ -126,8 +128,24 @@ func (self *VerifiableMap) Get(key []byte, treeSize int64, factory VerifiableEnt
 	}, nil
 }
 
+// VerifiedGet gets the value for the given key in the specified MapTreeState, and verifies that it is
+// included in the MapTreeHead (wrapped by the MapTreeState) before returning.
+// factory is normally one of RawDataEntryFactory, JsonEntryFactory or RedactedJsonEntryFactory.
+func (self *VerifiableMap) VerifiedGet(key []byte, mapHead *MapTreeState, factory VerifiableEntryFactory) (VerifiableEntry, error) {
+	proof, err := self.Get(key, mapHead.TreeSize(), factory)
+	if err != nil {
+		return nil, err
+	}
+	err = proof.Verify(&mapHead.MapTreeHead)
+	if err != nil {
+		return nil, err
+	}
+	return proof.Value, nil
+}
+
 // Set will set generate a map mutation to set the given value for the given key.
 // While this will return quickly, the change will be reflected asynchronously in the map.
+// Returns an AddEntryResponse which contains the leaf hash for the mutation log entry.
 func (self *VerifiableMap) Set(key []byte, value UploadableEntry) (*AddEntryResponse, error) {
 	data, err := value.DataForUpload()
 	if err != nil {
@@ -148,6 +166,7 @@ func (self *VerifiableMap) Set(key []byte, value UploadableEntry) (*AddEntryResp
 // Delete will set generate a map mutation to delete the value for the given key. Calling Delete
 // is equivalent to calling Set with an empty value.
 // While this will return quickly, the change will be reflected asynchronously in the map.
+// Returns an AddEntryResponse which contains the leaf hash for the mutation log entry.
 func (self *VerifiableMap) Delete(key []byte) (*AddEntryResponse, error) {
 	contents, _, err := self.client.makeRequest("DELETE", self.path+"/key/h/"+hex.EncodeToString(key), nil)
 	if err != nil {
@@ -184,7 +203,9 @@ func (self *VerifiableMap) TreeHead(treeSize int64) (*MapTreeHead, error) {
 
 // BlockUntilSize blocks until the map has caught up to a certain size. This polls
 // getTreeHead(int) until such time as a new tree hash is produced that is of at least this
-// size. This is intended for test use.
+// size.
+//
+// This is intended for test use.
 func (self *VerifiableMap) BlockUntilSize(treeSize int64) (*MapTreeHead, error) {
 	lastHead := int64(-1)
 	timeToSleep := time.Second
@@ -193,11 +214,11 @@ func (self *VerifiableMap) BlockUntilSize(treeSize int64) (*MapTreeHead, error) 
 		if err != nil {
 			return nil, err
 		}
-		if lth.MutationLogTreeHead.TreeSize >= treeSize {
+		if lth.TreeSize() >= treeSize {
 			return lth, nil
 		} else {
-			if lth.MutationLogTreeHead.TreeSize > lastHead {
-				lastHead = lth.MutationLogTreeHead.TreeSize
+			if lth.TreeSize() > lastHead {
+				lastHead = lth.TreeSize()
 				// since we got a new tree head, reset sleep time
 				timeToSleep = time.Second
 			} else {
@@ -207,4 +228,71 @@ func (self *VerifiableMap) BlockUntilSize(treeSize int64) (*MapTreeHead, error) 
 			time.Sleep(timeToSleep)
 		}
 	}
+}
+
+// VerifiedLatestMapState fetches the latest MapTreeHead, verifies it is consistent with,
+// and newer than, any previously passed state.
+func (self *VerifiableMap) VerifiedLatestMapState(prev *MapTreeState) (*MapTreeState, error) {
+	head, err := self.VerifiedMapState(prev, Head)
+	if err != nil {
+		return nil, err
+	}
+
+	if prev != nil {
+		// this shouldn't go backwards, but perhaps in a distributed system not all nodes are up to date immediately,
+		// so we won't consider it an error, but will return the old value in such a case.
+		if head.TreeSize() <= prev.TreeSize() {
+			return prev, nil
+		}
+	}
+
+	// all good
+	return head, nil
+}
+
+// VerifiedMapState returns a wrapper for the MapTreeHead for a given tree size, along with
+// a LogTreeHead for the TreeHeadLog that has been verified to contain this map tree head.
+// The value returned by this will have been proven to be consistent with any passed prev value.
+// Note that the TreeHeadLogTreeHead returned may differ between calls, even for the same treeSize,
+// as all future LogTreeHeads can also be proven to contain the MapTreeHead.
+//
+// Typical clients that only need to access current data will instead use VerifyLatestMapState()
+func (self *VerifiableMap) VerifiedMapState(prev *MapTreeState, treeSize int64) (*MapTreeState, error) {
+	// Get latest map head
+	mapHead, err := self.TreeHead(treeSize)
+	if err != nil {
+		return nil, err
+	}
+
+	// If we have a previous state, then make sure both logs are consistent with it
+	if prev != nil {
+		// Make sure that the mutation log is consistent with what we had
+		err = self.MutationLog().VerifyConsistencyProof(&prev.MapTreeHead.MutationLogTreeHead,
+			&mapHead.MutationLogTreeHead)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Get the latest tree head for the tree head log
+	var prevThlth *LogTreeHead
+	if prev != nil {
+		prevThlth = &prev.TreeHeadLogTreeHead
+	}
+	thlth, err := self.TreeHeadLog().VerifyLatestTreeHead(prevThlth)
+	if err != nil {
+		return nil, err
+	}
+
+	// And make sure we are in it
+	err = self.TreeHeadLog().VerifyInclusionProof(thlth, mapHead)
+	if err != nil {
+		return nil, err
+	}
+
+	// All good
+	return &MapTreeState{
+		MapTreeHead:         *mapHead,
+		TreeHeadLogTreeHead: *thlth,
+	}, nil
 }

@@ -18,12 +18,13 @@ package continusec
 
 import (
 	"fmt"
+	"golang.org/x/net/context"
 	"strings"
 	"testing"
 )
 
 func TestStuff(t *testing.T) {
-	RunMockServer(":8080", &ProxyAndRecordHandler{
+	go RunMockServer(":8080", &ProxyAndRecordHandler{
 		Host:          "https://api.continusec.com",
 		InHeaders:     []string{"Authorization"},
 		OutHeaders:    []string{"Content-Type", "X-Verified-TreeSize", "X-Verified-Proof"},
@@ -104,7 +105,7 @@ func TestStuff(t *testing.T) {
 		}
 	}
 
-	head103, err := log.FetchVerifiedTreeHead(head)
+	head103, err := log.VerifyTreeHead(head, Head)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,12 +114,12 @@ func TestStuff(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	inclProof, err := log.InclusionProof(head103.TreeSize, &RawDataEntry{RawBytes: []byte("foo27")})
+	err = log.VerifyInclusionProof(head103, &RawDataEntry{RawBytes: []byte("foo27")})
 	if err != ErrNotFound {
 		t.Fatal(err)
 	}
 
-	inclProof, err = log.InclusionProof(head103.TreeSize, &RawDataEntry{RawBytes: []byte("foo-27")})
+	inclProof, err := log.InclusionProof(head103.TreeSize, &RawDataEntry{RawBytes: []byte("foo-27")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,8 +168,10 @@ func TestStuff(t *testing.T) {
 		t.Fatal(10)
 	}
 
+	ctx := context.TODO()
+
 	count := 0
-	err = log.FetchAndAuditLogEntries(ZeroLogTreeHead, head103, RawDataEntryFactory, func(idx int64, entry VerifiableEntry) error {
+	err = log.VerifyEntries(ctx, nil, head103, RawDataEntryFactory, func(idx int64, entry VerifiableEntry) error {
 		_, err := entry.Data()
 		if err != nil {
 			return err
@@ -190,7 +193,7 @@ func TestStuff(t *testing.T) {
 	}
 
 	count = 0
-	err = log.FetchAndAuditLogEntries(head1, head103, JsonEntryFactory, func(idx int64, entry VerifiableEntry) error {
+	err = log.VerifyEntries(ctx, head1, head103, JsonEntryFactory, func(idx int64, entry VerifiableEntry) error {
 		_, err := entry.Data()
 		if err != nil {
 			return err
@@ -211,7 +214,7 @@ func TestStuff(t *testing.T) {
 	}
 
 	count = 0
-	err = log.FetchAndAuditLogEntries(head1, head3, JsonEntryFactory, func(idx int64, entry VerifiableEntry) error {
+	err = log.VerifyEntries(ctx, head1, head3, JsonEntryFactory, func(idx int64, entry VerifiableEntry) error {
 		_, err := entry.Data()
 		if err != nil {
 			return err
@@ -227,7 +230,7 @@ func TestStuff(t *testing.T) {
 	}
 
 	count = 0
-	err = log.FetchAndAuditLogEntries(head50, head103, RawDataEntryFactory, func(idx int64, entry VerifiableEntry) error {
+	err = log.VerifyEntries(ctx, head50, head103, RawDataEntryFactory, func(idx int64, entry VerifiableEntry) error {
 		_, err := entry.Data()
 		if err != nil {
 			return err
@@ -242,11 +245,7 @@ func TestStuff(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	inclProof, err = log.InclusionProof(head103.TreeSize, &JsonEntry{JsonBytes: []byte("{    \"ssn\":  123.4500 ,   \"name\" :  \"adam\"}")})
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = inclProof.Verify(head103)
+	err = log.VerifyInclusionProof(head103, &JsonEntry{JsonBytes: []byte("{    \"ssn\":  123.4500 ,   \"name\" :  \"adam\"}")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -269,11 +268,7 @@ func TestStuff(t *testing.T) {
 		t.Fatal(-1)
 	}
 
-	inclProof, err = log.InclusionProof(head103.TreeSize, redEnt)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = inclProof.Verify(head103)
+	err = log.VerifyInclusionProof(head103, redEnt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -299,11 +294,7 @@ func TestStuff(t *testing.T) {
 		t.Fatal(-1)
 	}
 
-	inclProof, err = log.InclusionProof(head103.TreeSize, redEnt)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = inclProof.Verify(head103)
+	err = log.VerifyInclusionProof(head103, redEnt)
 	if err != nil {
 		t.Fatal(err)
 	}

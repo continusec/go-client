@@ -119,6 +119,8 @@ func (self *VerifiableLog) TreeHead(treeSize int64) (*LogTreeHead, error) {
 // log. The proof consists of the index within the log that the entry is stored, and an
 // audit path which returns the corresponding leaf nodes that can be applied to the input
 // leaf hash to generate the root tree hash for the log.
+//
+// Most clients instead use VerifyInclusionProof which additionally verifies the returned proof.
 func (self *VerifiableLog) InclusionProof(treeSize int64, leaf MerkleTreeLeaf) (*LogInclusionProof, error) {
 	mtlHash, err := leaf.LeafHash()
 	if err != nil {
@@ -141,10 +143,28 @@ func (self *VerifiableLog) InclusionProof(treeSize int64, leaf MerkleTreeLeaf) (
 	}, nil
 }
 
+// VerifyInclusionProof will fetch a proof the the specified MerkleTreeHash is included in the
+// log and verify that it can produce the root hash in the specified LogTreeHead.
+func (self *VerifiableLog) VerifyInclusionProof(head *LogTreeHead, leaf MerkleTreeLeaf) error {
+	proof, err := self.InclusionProof(head.TreeSize, leaf)
+	if err != nil {
+		return err
+	}
+
+	err = proof.Verify(head)
+	if err != nil {
+		return err
+	}
+
+	// All good
+	return nil
+}
+
 // InclusionProofByIndex will return an inclusion proof for a specified tree size and leaf index.
 // This is not used by typical clients, however it can be useful for certain audit operations and debugging tools.
-// Typical clients will instead use InclusionProof(). The LogInclusionProof returned by this method
-// will not have the LeafHash filled in and as such will fail to verify.
+// The LogInclusionProof returned by this method will not have the LeafHash filled in and as such will fail to verify.
+//
+// Typical clients will instead use VerifyInclusionProof().
 func (self *VerifiableLog) InclusionProofByIndex(treeSize, leafIndex int64) (*LogInclusionProof, error) {
 	contents, _, err := self.client.makeRequest("GET", self.path+fmt.Sprintf("/tree/%d/inclusion/%d", treeSize, leafIndex), nil)
 	if err != nil {
@@ -165,6 +185,8 @@ func (self *VerifiableLog) InclusionProofByIndex(treeSize, leafIndex int64) (*Lo
 
 // ConsistencyProof returns an audit path which contains the set of Merkle Subtree hashes
 // that demonstrate how to root hash is calculated for both the first and second tree sizes.
+//
+// Most clients instead use VerifyInclusionProof which additionally verifies the returned proof.
 func (self *VerifiableLog) ConsistencyProof(first, second int64) (*LogConsistencyProof, error) {
 	contents, _, err := self.client.makeRequest("GET", self.path+fmt.Sprintf("/tree/%d/consistency/%d", second, first), nil)
 	if err != nil {
@@ -180,6 +202,40 @@ func (self *VerifiableLog) ConsistencyProof(first, second int64) (*LogConsistenc
 		FirstSize:  cr.First,
 		SecondSize: cr.Second,
 	}, nil
+}
+
+// VerifyConsistencyProof takes two tree heads, retrieves a consistency proof, verifies it,
+// and returns the result. The two tree heads may be in either order (even equal), but both must be greater than zero and non-nil.
+func (self *VerifiableLog) VerifyConsistencyProof(a, b *LogTreeHead) error {
+	if a == nil || b == nil || a.TreeSize <= 0 || b.TreeSize <= 0 {
+		return ErrVerificationFailed
+	}
+
+	// Special case being equal
+	if a.TreeSize == b.TreeSize {
+		if !bytes.Equal(a.RootHash, b.RootHash) {
+			return ErrVerificationFailed
+		}
+		// All good
+		return nil
+	}
+
+	// If wrong order, swap 'em
+	if a.TreeSize > b.TreeSize {
+		a, b = b, a
+	}
+
+	proof, err := self.ConsistencyProof(a.TreeSize, b.TreeSize)
+	if err != nil {
+		return err
+	}
+	err = proof.Verify(a, b)
+	if err != nil {
+		return err
+	}
+
+	// All good
+	return nil
 }
 
 // Entry returns the entry stored for the given index using the passed in factory to instantiate the entry.
@@ -201,6 +257,7 @@ func (self *VerifiableLog) Entry(idx int64, factory VerifiableEntryFactory) (Ver
 // Entries batches requests to fetch entries from the server and returns a channel with the data
 // for each entry. Close the context passed to terminate early if desired. If an error is
 // encountered, the channel will be closed early before all items are returned.
+//
 // factory is normally one of one of RawDataEntryFactory, JsonEntryFactory or RedactedJsonEntryFactory.
 func (self *VerifiableLog) Entries(ctx context.Context, start, end int64, factory VerifiableEntryFactory) <-chan VerifiableEntry {
 	rv := make(chan VerifiableEntry)
@@ -215,14 +272,12 @@ func (self *VerifiableLog) Entries(ctx context.Context, start, end int64, factor
 
 			contents, _, err := self.client.makeRequest("GET", self.path+fmt.Sprintf("/entries/%d-%d%s", start, lastToFetch, factory.Format()), nil)
 			if err != nil {
-				//fmt.Println("Error getting entries:", err) //TODO: how to best return this error?
 				return
 			}
 
 			var ger getEntriesResponse
 			err = json.Unmarshal(contents, &ger)
 			if err != nil {
-				//fmt.Println("Error unmarshaling entries JSON:", err) //TODO: how to best return this error?
 				return
 			}
 
@@ -241,7 +296,6 @@ func (self *VerifiableLog) Entries(ctx context.Context, start, end int64, factor
 						gotOne = true
 					}
 				} else {
-					//fmt.Println("Encountered incorrect entry in GetEntries response. Expected:", start, "Received:", e.Number) //TODO: how to best return this error?
 					return
 				}
 			}
@@ -257,7 +311,9 @@ func (self *VerifiableLog) Entries(ctx context.Context, start, end int64, factor
 // BlockUntilPresent blocks until the log is able to produce a LogTreeHead that includes the
 // specified MerkleTreeLeaf. This polls TreeHead() and InclusionProof() until such time as a new
 // tree hash is produced that includes the given MerkleTreeLeaf. Exponential back-off is used
-// when no tree hash is available. This is intended for test use.
+// when no tree hash is available.
+//
+// This is intended for test use.
 func (self *VerifiableLog) BlockUntilPresent(leaf MerkleTreeLeaf) (*LogTreeHead, error) {
 	lastHead := int64(-1)
 	timeToSleep := time.Second
@@ -268,7 +324,7 @@ func (self *VerifiableLog) BlockUntilPresent(leaf MerkleTreeLeaf) (*LogTreeHead,
 		}
 		if lth.TreeSize > lastHead {
 			lastHead = lth.TreeSize
-			_, err = self.InclusionProof(lth.TreeSize, leaf)
+			err = self.VerifyInclusionProof(lth, leaf)
 			switch err {
 			case nil: // we found it
 				return lth, nil
@@ -287,33 +343,45 @@ func (self *VerifiableLog) BlockUntilPresent(leaf MerkleTreeLeaf) (*LogTreeHead,
 	}
 }
 
-var ZeroLogTreeHead = &LogTreeHead{TreeSize: 0}
-
-// FetchVerifiedTreeHead is a utility method to fetch a new LogTreeHead and verifies that it is consistent with
-// a tree head earlier fetched and persisted. To avoid potentially masking client tree head storage issues,
-// it is an error to pass nil (ErrNilTreeHead is returned). For first use, pass ZeroLogTreeHead, which will
-// bypass consistency proof checking.
-func (self *VerifiableLog) FetchVerifiedTreeHead(prev *LogTreeHead) (*LogTreeHead, error) {
-	if prev == nil {
-		return nil, ErrNilTreeHead
-	}
-
-	head, err := self.TreeHead(Head)
+// VerifyLatestTreeHead calls VerifyTreeHead() with Head to fetch the latest tree head,
+// and additonally verifies that it is newer than the previously passed tree head.
+// For first use, pass nil to skip consistency checking.
+func (self *VerifiableLog) VerifyLatestTreeHead(prev *LogTreeHead) (*LogTreeHead, error) {
+	head, err := self.VerifyTreeHead(prev, Head)
 	if err != nil {
 		return nil, err
 	}
 
-	if head.TreeSize <= prev.TreeSize {
+	// If "newest" is actually older (but consistent), catch and return the previous. While the log should not
+	// normally go backwards, it is reasonable that a distributed system may not be entirely up to date immediately.
+	if prev != nil {
+		if head.TreeSize <= prev.TreeSize {
+			return prev, nil
+		}
+	}
+
+	// All good
+	return head, nil
+}
+
+// VerifyTreeHead is a utility method to fetch a LogTreeHead and verifies that it is consistent with
+// a tree head earlier fetched and persisted. For first use, pass nil for prev, which will
+// bypass consistency proof checking. Tree size may be older or newer than the previous head value.
+//
+// Clients typically use VerifyLatestTreeHead().
+func (self *VerifiableLog) VerifyTreeHead(prev *LogTreeHead, treeSize int64) (*LogTreeHead, error) {
+	// special case returning the value we already have
+	if treeSize != 0 && prev != nil && prev.TreeSize == treeSize {
 		return prev, nil
 	}
 
-	if head.TreeSize > prev.TreeSize && prev.TreeSize > 0 {
-		proof, err := self.ConsistencyProof(prev.TreeSize, head.TreeSize)
-		if err != nil {
-			return nil, err
-		}
+	head, err := self.TreeHead(treeSize)
+	if err != nil {
+		return nil, err
+	}
 
-		err = proof.Verify(prev, head)
+	if prev != nil {
+		err = self.VerifyConsistencyProof(prev, head)
 		if err != nil {
 			return nil, err
 		}
@@ -324,79 +392,35 @@ func (self *VerifiableLog) FetchVerifiedTreeHead(prev *LogTreeHead) (*LogTreeHea
 
 // VerifySuppliedInclusionProof is a utility method that fetches any required tree heads that are needed
 // to verify a supplied log inclusion proof. Additionally it will ensure that any fetched tree heads are consistent
-// with any prior supplied LogTreeHead.  To avoid potentially masking client tree head storage issues,
-// it is an error to pass nil (ErrNilTreeHead is returned). For first use, pass ZeroLogTreeHead, which will
-// bypass consistency proof checking.
+// with any prior supplied LogTreeHead (which may be nil, to skip consistency checks).
 //
-// The LogTreeHead returned is the one used to verify the inclusion proof - it be newer or older than the one passed in.
+// Upon success, the LogTreeHead returned is the one used to verify the inclusion proof - it may be newer or older than the one passed in.
 // In either case, it will have been verified as consistent.
 func (self *VerifiableLog) VerifySuppliedInclusionProof(prev *LogTreeHead, proof *LogInclusionProof) (*LogTreeHead, error) {
-	if prev == nil {
-		return nil, ErrNilTreeHead
-	}
-	var headForInclProof *LogTreeHead
-	if proof.TreeSize == prev.TreeSize {
-		headForInclProof = prev
-	} else {
-		var err error
-		headForInclProof, err = self.TreeHead(proof.TreeSize)
-		if err != nil {
-			return nil, err
-		}
-		if prev.TreeSize != 0 {
-			if headForInclProof.TreeSize < prev.TreeSize {
-				conProof, err := self.ConsistencyProof(headForInclProof.TreeSize, prev.TreeSize)
-				if err != nil {
-					return nil, err
-				}
-				err = conProof.Verify(headForInclProof, prev)
-				if err != nil {
-					return nil, err
-				}
-			} else if headForInclProof.TreeSize > prev.TreeSize {
-				conProof, err := self.ConsistencyProof(prev.TreeSize, headForInclProof.TreeSize)
-				if err != nil {
-					return nil, err
-				}
-				err = conProof.Verify(prev, headForInclProof)
-				if err != nil {
-					return nil, err
-				}
-			} else { // should not get here
-				return prev, ErrVerificationFailed
-			}
-		}
+	headForInclProof, err := self.VerifyTreeHead(prev, proof.TreeSize)
+	if err != nil {
+		return nil, err
 	}
 
-	err := proof.Verify(headForInclProof)
+	err = proof.Verify(headForInclProof)
 	if err != nil {
-		return headForInclProof, err
+		return nil, err
 	}
 
 	// all clear
 	return headForInclProof, nil
 }
 
-// AuditFunction is a function that is called for all matching log entries.
-// Return non-nil to stop the audit.
-type AuditFunction func(idx int64, entry VerifiableEntry) error
-
-// FetchAndAuditLogEntries is a utility method for auditors that wish to audit the full content of
+// VerifyEntries is a utility method for auditors that wish to audit the full content of
 // a log, as well as the log operation. This method will retrieve all entries in batch from
 // the log between the passed in prev and head LogTreeHeads, and ensure that the root hash in head can be confirmed to accurately represent
-// the contents of all of the log entries retrieved. To avoid potentially masking client tree head storage issues,
-// it is an error to pass nil (ErrNilTreeHead is returned). For first use, pass ZeroLogTreeHead, which will
-// bypass consistency proof checking.
-func (self *VerifiableLog) FetchAndAuditLogEntries(prev *LogTreeHead, head *LogTreeHead, factory VerifiableEntryFactory, auditFunc AuditFunction) error {
-	if prev == nil {
-		return ErrNilTreeHead
-	}
-
+// the contents of all of the log entries retrieved. To start at entry zero, pass nil for prev, which will also bypass consistency proof checking. Head must not be nil.
+func (self *VerifiableLog) VerifyEntries(ctx context.Context, prev *LogTreeHead, head *LogTreeHead, factory VerifiableEntryFactory, auditFunc AuditFunction) error {
 	if head == nil {
 		return ErrNilTreeHead
 	}
 
-	if head.TreeSize <= prev.TreeSize {
+	if prev != nil && head.TreeSize <= prev.TreeSize {
 		return nil
 	}
 
@@ -405,7 +429,9 @@ func (self *VerifiableLog) FetchAndAuditLogEntries(prev *LogTreeHead, head *LogT
 	}
 
 	merkleTreeStack := make([][]byte, 0)
-	if prev.TreeSize > 0 {
+	idx := int64(0)
+	if prev != nil && prev.TreeSize > 0 {
+		idx = prev.TreeSize
 		p, err := self.InclusionProofByIndex(prev.TreeSize+1, prev.TreeSize)
 		if err != nil {
 			return err
@@ -428,11 +454,10 @@ func (self *VerifiableLog) FetchAndAuditLogEntries(prev *LogTreeHead, head *LogT
 			merkleTreeStack = append(merkleTreeStack, p.AuditPath[i])
 		}
 	}
-	idx := prev.TreeSize
 
-	ctx, canc := context.WithCancel(context.TODO())
+	ourCtx, canc := context.WithCancel(ctx)
 	defer canc()
-	for entry := range self.Entries(ctx, idx, head.TreeSize, factory) {
+	for entry := range self.Entries(ourCtx, idx, head.TreeSize, factory) {
 		// audit
 		err := auditFunc(idx, entry)
 		if err != nil {

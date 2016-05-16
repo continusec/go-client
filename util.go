@@ -56,30 +56,16 @@ var (
 	// Object may already exist
 	ErrObjectConflict = errors.New("ErrObjectConflict")
 
-	// A nil tree head was passed as input
+	// A nil tree head was unexpectedly passed as input
 	ErrNilTreeHead = errors.New("ErrNilTreeHead")
 
 	// ErrNotAllEntriesReturned can occur if Json is requested, but the data on the server was not stored in that manner. If in doubt, RawDataEntryFactory will always succeed regardless of input format.
 	ErrNotAllEntriesReturned = errors.New("ErrNotAllEntriesReturned")
 )
 
-// InclusionProof is a common interface for inclusion proofs in both maps and logs.
-type InclusionProof interface {
-	// CalculateRootHash calculates the root hash based on the value presented and audit path provided.
-	// Returns the calculated root hash, that a client typically checks against a root hash provided by a GetTreeHead() method.
-	CalculateRootHash() ([]byte, error)
-
-	// TreeSize returns the tree size for which this inclusion proof is valid.
-	TreeSize() int64
-}
-
-// LogAuditor is an interface for auditors that wish to iterate over entries in a log, to audit both the log operations, and the correctness (or other, as defined by the auditor) of the entries.
-type LogAuditor interface {
-	// Called by AuditLogEntries() as each log entry is encountered.
-	// It is up to the auditor what to do with each entry. The caller (usually AuditLogEntries()) is responsible for verifying
-	// correct operation of the log, the auditor is responsible for any decision about the contents of the entries.
-	AuditLogEntry(idx int64, entry VerifiableEntry) error
-}
+// AuditFunction is a function that is called for all matching log entries.
+// Return non-nil to stop the audit.
+type AuditFunction func(idx int64, entry VerifiableEntry) error
 
 // MerkleTreeLeaf is an interface to represent any object that a Merkle Tree Leaf can be calculated for.
 type MerkleTreeLeaf interface {
@@ -321,7 +307,47 @@ type MapTreeHead struct {
 	RootHash []byte
 
 	// MutationLogTreeHead is the mutation log tree head for which this RootHash is valid
+	// This value is always present as it is part of the Map Tree Head produced by the server.
 	MutationLogTreeHead LogTreeHead
+}
+
+// TreeSize is a utility method to return the tree size of the underlying mutation log.
+func (self *MapTreeHead) TreeSize() int64 {
+	return self.MutationLogTreeHead.TreeSize
+}
+
+// LeafHash allows for this MapTreeHead to implement MerkleTreeLeaf which makes it
+// convenient for use with inclusioon proof checks.
+func (self *MapTreeHead) LeafHash() ([]byte, error) {
+	oh, err := objecthash.ObjectHash(map[string]interface{}{
+		"map_hash": self.RootHash,
+		"mutation_log": map[string]interface{}{
+			"tree_size": self.TreeSize(),
+			"tree_hash": self.MutationLogTreeHead.RootHash,
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	return LeafMerkleTreeHash(oh), nil
+}
+
+// MapTreeState represents the current state of a map, intended for persistence by callers.
+// It combine the MapTreeHead which is the current state, with the LogTreeHead for the underlying
+// tree head logs which has been verified to include this MapTreeHead
+type MapTreeState struct {
+	// MapTreeHead is the root hash / mutation tree head for the map at this time.
+	MapTreeHead MapTreeHead
+
+	// TreeHeadLogTreeHead is a TreeHead for the Tree Head log, which contains this Map Tree Head.
+	// The tree size in this log tree head may be different to that in the mutation log tree head.
+	// The TreeSize of this MapTreeState is dictated by the tree size of the Mutation Log which the map root hash represents.
+	TreeHeadLogTreeHead LogTreeHead
+}
+
+// TreeSize is a utility method for returning the tree size of the underlying map.
+func (self *MapTreeState) TreeSize() int64 {
+	return self.MapTreeHead.TreeSize()
 }
 
 // LogConsistencyProof is a class to represent a consistency proof for a given log.
