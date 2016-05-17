@@ -142,11 +142,12 @@ func saveResponse(resp *http.Response, headerFilter []string) (*SavedResponse, e
 	}, nil
 }
 
-func writeResponse(saved *SavedResponse, w http.ResponseWriter) {
+func (self *ProxyAndRecordHandler) writeResponse(saved *SavedResponse, w http.ResponseWriter) {
 	for k, vs := range saved.Headers {
 		w.Header()[k] = vs
 	}
 	w.Header().Set("access-control-allow-origin", "*")
+	w.Header().Set("access-control-expose-headers", strings.Join(self.OutHeaders, ","))
 	w.WriteHeader(saved.StatusCode)
 	w.Write(saved.Body)
 }
@@ -174,6 +175,7 @@ func (self *ProxyAndRecordHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 	// Special case CORS for Javascript client
 	if r.Method == "OPTIONS" {
 		w.Header().Set("access-control-allow-headers", strings.Join(self.InHeaders, ","))
+		w.Header().Set("access-control-expose-headers", strings.Join(self.OutHeaders, ","))
 		w.Header().Set("access-control-allow-origin", "*")
 		w.Header().Set("access-control-allow-methods", "PUT,POST,GET,DELETE")
 		w.WriteHeader(200)
@@ -215,7 +217,7 @@ func (self *ProxyAndRecordHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	writeResponse(savedPair.Response, w)
+	self.writeResponse(savedPair.Response, w)
 	self.Sequence++
 }
 
