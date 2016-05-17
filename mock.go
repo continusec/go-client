@@ -146,6 +146,7 @@ func writeResponse(saved *SavedResponse, w http.ResponseWriter) {
 	for k, vs := range saved.Headers {
 		w.Header()[k] = vs
 	}
+	w.Header().Set("access-control-allow-origin", "*")
 	w.WriteHeader(saved.StatusCode)
 	w.Write(saved.Body)
 }
@@ -170,6 +171,14 @@ func sendSavedRequest(savedReq *SavedRequest, headerIn, headerOut []string) (*Sa
 }
 
 func (self *ProxyAndRecordHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Special case CORS for Javascript client
+	if r.Method == "OPTIONS" {
+		w.Header().Set("access-control-allow-headers", strings.Join(self.InHeaders, ","))
+		w.Header().Set("access-control-allow-origin", "*")
+		w.Header().Set("access-control-allow-methods", "PUT,POST,GET,DELETE")
+		w.WriteHeader(200)
+		return
+	}
 	canonReq, err := saveRequest(r, self.Host, self.InHeaders)
 	if err != nil {
 		fmt.Println(self.Sequence, "Error saving request:", err)
