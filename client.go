@@ -17,7 +17,64 @@
 // Package continusec provides golang client libraries for interacting with the
 // verifiable datastructures provided by Continusec.
 //
-// Users should start with the NewClient function.
+// Sample usage is as follows:
+//
+//     import (
+//         continusec "github.com/continusec/go-client"
+//     )
+//
+//     // Construct a client
+//     client := continusec.NewClient("<your account number>", "<your api key>")
+//
+//     // If on Google App Engine:
+//     client = client.WithHttpClient(urlfetch.Client(ctx))
+//
+//     // Get a pointer to a log
+//     log := client.VerifiableLog("testlog")
+//
+//     // Create a log (only do this once)
+//     err := log.Create()
+//     if err != nil { ... }
+//
+//     // Add entry to log
+//     _, err = log.Add(&continusec.RawDataEntry{RawBytes: []byte("foo")})
+//     if err != nil { ... }
+//
+//     // Get latest verified tree head
+//     prev := ... load from storage ...
+//     head, err := log.VerifiedLatestTreeHead(prev)
+//     if err != nil { ... }
+//     if head.TreeSize > prev.TreeSize {
+//         ... save head to storage ...
+//     }
+//
+//     // Prove inclusion of item in tree head
+//     err = log.VerifyInclusion(head, &continusec.RawDataEntry{RawBytes: []byte("foo")})
+//     if err != nil { ... }
+//
+//     // Get a pointer to a map
+//     vmap := client.VerifiableMap("testmap")
+//
+//     // Create a map (only do this once)
+//     err := vmap.Create()
+//     if err != nil { ... }
+//
+//     // Set value in the map
+//     _, err = _, err = vmap.Set([]byte("foo"), &continusec.RawDataEntry{RawBytes: []byte("bar")})
+//     if err != nil { ... }
+//
+//     // Get latest verified map state
+//     prev := ... load from storage ...
+//     head, err := vmap.VerifiedLatestMapState(prev)
+//     if err != nil { ... }
+//     if head.TreeSize() > prev.TreeSize() {
+//         ... save head to storage ...
+//     }
+//
+//     // Get value and verify its inclusion in head
+//     entry, err := vmap.VerifiedGet([]byte("foo"), head, continusec.RawDataEntryFactory)
+//     if err != nil { ... }
+//
 package continusec
 
 import (
@@ -41,7 +98,7 @@ type Client struct {
 // account, although accepted as a string, is usually the integer shown on your account
 // settings page.
 //
-// apiKey is the string configured on your API Access page, and may be left blank for
+// apiKey is the string configured on your API Access page, and may be left blank to access
 // any data that is publicly accessible.
 func NewClient(account string, apiKey string) *Client {
 	return &Client{

@@ -26,7 +26,7 @@ import (
 )
 
 // Head can be used where tree sizes are accepted to represent the latest tree size.
-// Most typically this is used with TreeHash() calls where the latest tree size is not
+// Most typically this is used with TreeHead() calls where the latest tree size is not
 // yet known.
 const Head = int64(0)
 
@@ -60,7 +60,8 @@ var (
 	// A nil tree head was unexpectedly passed as input
 	ErrNilTreeHead = errors.New("ErrNilTreeHead")
 
-	// ErrNotAllEntriesReturned can occur if Json is requested, but the data on the server was not stored in that manner. If in doubt, RawDataEntryFactory will always succeed regardless of input format.
+	// ErrNotAllEntriesReturned can occur if Json is requested, but the data on the server was
+	// not stored in that manner. If in doubt, RawDataEntryFactory will always succeed regardless of input format.
 	ErrNotAllEntriesReturned = errors.New("ErrNotAllEntriesReturned")
 )
 
@@ -69,12 +70,14 @@ var (
 type AuditFunction func(idx int64, entry VerifiableEntry) error
 
 // MerkleTreeLeaf is an interface to represent any object that a Merkle Tree Leaf can be calculated for.
+// This includes RawDataEntry, JsonEntry, RedactedJsonEntry, AddEntryResponse and MapHead.
 type MerkleTreeLeaf interface {
 	// LeafHash() returns the leaf hash for this object.
 	LeafHash() ([]byte, error)
 }
 
 // UploadableEntry is an interface to represent an entry type that can be uploaded as a log entry or map value.
+// This includes RawDataEntry, JsonEntry, RedactableJsonEntry.
 type UploadableEntry interface {
 	// DataForUpload returns the data that should be uploaded
 	DataForUpload() ([]byte, error)
@@ -233,7 +236,7 @@ func (self *RedactableJsonEntry) Format() string {
 
 // RedactedJsonEntry represents redacted entries as returned by the server.
 // Not to be confused with RedactableJsonEntry that should be used to represent objects that
-// should be made Redactable by the server when uploaded.
+// should be made redactable by the server when uploaded.
 type RedactedJsonEntry struct {
 	// The data returned
 	RedactedJsonBytes []byte
@@ -294,7 +297,7 @@ func (self *RedactedJsonEntryFactoryImpl) Format() string {
 // RedactedJsonEntryFactory is an instance of RedactedJsonEntryFactoryImpl that is ready for use
 var RedactedJsonEntryFactory = &RedactedJsonEntryFactoryImpl{}
 
-// LogTreeHead is a class for Tree Hash as returned for a log with a given size.
+// LogTreeHead is a class for Tree Head as returned for a log with a given size.
 type LogTreeHead struct {
 	// TreeSize is the size of the tree for which the RootHash is valid
 	TreeSize int64
@@ -302,14 +305,15 @@ type LogTreeHead struct {
 	RootHash []byte
 }
 
-// MapTreeHead is a class for Tree Hash as returned for a Map with a given size.
+// MapTreeHead is a class for Tree Head as returned for a Map with a given size.
 type MapTreeHead struct {
 	// RootHash is the root hash for map of size MutationLogTreeHead.TreeSize
 	RootHash []byte
 
 	// MutationLogTreeHead is the mutation log tree head for which this RootHash is valid
-	// This value is always present as it is part of the Map Tree Head produced by the server.
 	MutationLogTreeHead LogTreeHead
+
+	leafHash []byte
 }
 
 // TreeSize is a utility method to return the tree size of the underlying mutation log.
@@ -318,24 +322,27 @@ func (self *MapTreeHead) TreeSize() int64 {
 }
 
 // LeafHash allows for this MapTreeHead to implement MerkleTreeLeaf which makes it
-// convenient for use with inclusion proof checks.
+// convenient for use with inclusion proof checks against the TreeHead log.
 func (self *MapTreeHead) LeafHash() ([]byte, error) {
-	oh, err := objecthash.ObjectHash(map[string]interface{}{
-		"map_hash": base64.StdEncoding.EncodeToString(self.RootHash), // Our hashes are encoded as base64 in JSON, so use this as input to objecthash
-		"mutation_log": map[string]interface{}{
-			"tree_size": float64(self.TreeSize()),                                             // JSON knows only numbers, so sadly we pretend to be a float
-			"tree_hash": base64.StdEncoding.EncodeToString(self.MutationLogTreeHead.RootHash), // Our hashes are encoded as base64 in JSON, so use this as input to objecthash
-		},
-	})
-	if err != nil {
-		return nil, err
+	if self.leafHash == nil {
+		oh, err := objecthash.ObjectHash(map[string]interface{}{
+			"map_hash": base64.StdEncoding.EncodeToString(self.RootHash), // Our hashes are encoded as base64 in JSON, so use this as input to objecthash
+			"mutation_log": map[string]interface{}{
+				"tree_size": float64(self.TreeSize()),                                             // JSON knows only numbers, so sadly we pretend to be a float
+				"tree_hash": base64.StdEncoding.EncodeToString(self.MutationLogTreeHead.RootHash), // Our hashes are encoded as base64 in JSON, so use this as input to objecthash
+			},
+		})
+		if err != nil {
+			return nil, err
+		}
+		self.leafHash = LeafMerkleTreeHash(oh)
 	}
-	return LeafMerkleTreeHash(oh), nil
+	return self.leafHash, nil
 }
 
 // MapTreeState represents the current state of a map, intended for persistence by callers.
-// It combine the MapTreeHead which is the current state, with the LogTreeHead for the underlying
-// tree head logs which has been verified to include this MapTreeHead
+// It combines the MapTreeHead which is the current state, with the LogTreeHead for the underlying
+// tree head log which has been verified to include this MapTreeHead
 type MapTreeState struct {
 	// MapTreeHead is the root hash / mutation tree head for the map at this time.
 	MapTreeHead MapTreeHead

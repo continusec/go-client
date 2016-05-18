@@ -115,7 +115,7 @@ func (self *VerifiableLog) TreeHead(treeSize int64) (*LogTreeHead, error) {
 	}, nil
 }
 
-// InclusionProof will return a proof the the specified Merkle Tree Hash is included in the
+// InclusionProof will return a proof the the specified MerkleTreeLeaf is included in the
 // log. The proof consists of the index within the log that the entry is stored, and an
 // audit path which returns the corresponding leaf nodes that can be applied to the input
 // leaf hash to generate the root tree hash for the log.
@@ -311,7 +311,7 @@ func (self *VerifiableLog) Entries(ctx context.Context, start, end int64, factor
 // BlockUntilPresent blocks until the log is able to produce a LogTreeHead that includes the
 // specified MerkleTreeLeaf. This polls TreeHead() and InclusionProof() until such time as a new
 // tree hash is produced that includes the given MerkleTreeLeaf. Exponential back-off is used
-// when no tree hash is available.
+// when no new tree hash is available.
 //
 // This is intended for test use.
 func (self *VerifiableLog) BlockUntilPresent(leaf MerkleTreeLeaf) (*LogTreeHead, error) {

@@ -28,7 +28,7 @@ import (
 	"strings"
 )
 
-type ProxyAndRecordHandler struct {
+type proxyAndRecordHandler struct {
 	Host                  string
 	InHeaders, OutHeaders []string
 	Dir                   string
@@ -36,34 +36,34 @@ type ProxyAndRecordHandler struct {
 	FailOnMissing         bool
 }
 
-type SavedResponse struct {
+type savedResponse struct {
 	StatusCode int
 	Headers    map[string][]string
 	Body       []byte
 }
 
-type SavedRequest struct {
+type savedRequest struct {
 	URL     string
 	Method  string
 	Headers map[string][]string
 	Body    []byte
 }
 
-func (us *SavedRequest) Equals(them *SavedRequest) bool {
+func (us *savedRequest) Equals(them *savedRequest) bool {
 	return reflect.DeepEqual(us, them)
 }
 
-type SavedPair struct {
-	Request  *SavedRequest
-	Response *SavedResponse
+type savedPair struct {
+	Request  *savedRequest
+	Response *savedResponse
 }
 
-func FilePathForSeq(path string, seq int) string {
+func filePathForSeq(path string, seq int) string {
 	return filepath.Join(path, fmt.Sprintf("%04d.response", seq))
 }
 
-func (self *SavedPair) Write(path string, seq int) error {
-	fi, err := os.Create(FilePathForSeq(path, seq))
+func (self *savedPair) Write(path string, seq int) error {
+	fi, err := os.Create(filePathForSeq(path, seq))
 	if err != nil {
 		return err
 	}
@@ -75,13 +75,13 @@ func (self *SavedPair) Write(path string, seq int) error {
 	return nil
 }
 
-func LoadSavedIfThere(path string, seq int) (*SavedPair, error) {
-	fi, err := os.Open(FilePathForSeq(path, seq))
+func loadSavedIfThere(path string, seq int) (*savedPair, error) {
+	fi, err := os.Open(filePathForSeq(path, seq))
 	if err != nil {
 		return nil, err
 	}
 	defer fi.Close()
-	var rv SavedPair
+	var rv savedPair
 	err = json.NewDecoder(fi).Decode(&rv)
 	if err != nil {
 		return nil, err
@@ -89,7 +89,7 @@ func LoadSavedIfThere(path string, seq int) (*SavedPair, error) {
 	return &rv, nil
 }
 
-func saveRequest(r *http.Request, altHost string, headerFilter []string) (*SavedRequest, error) {
+func saveRequest(r *http.Request, altHost string, headerFilter []string) (*savedRequest, error) {
 	url := r.URL.String()
 	if strings.HasPrefix(url, "http://") {
 		url = url[7:]
@@ -112,7 +112,7 @@ func saveRequest(r *http.Request, altHost string, headerFilter []string) (*Saved
 		}
 	}
 
-	return &SavedRequest{
+	return &savedRequest{
 		Method:  r.Method,
 		URL:     url,
 		Headers: headers,
@@ -120,7 +120,7 @@ func saveRequest(r *http.Request, altHost string, headerFilter []string) (*Saved
 	}, nil
 }
 
-func saveResponse(resp *http.Response, headerFilter []string) (*SavedResponse, error) {
+func saveResponse(resp *http.Response, headerFilter []string) (*savedResponse, error) {
 	contents, err := ioutil.ReadAll(resp.Body)
 	resp.Body.Close()
 	if err != nil {
@@ -135,14 +135,14 @@ func saveResponse(resp *http.Response, headerFilter []string) (*SavedResponse, e
 		}
 	}
 
-	return &SavedResponse{
+	return &savedResponse{
 		StatusCode: resp.StatusCode,
 		Headers:    headers,
 		Body:       contents,
 	}, nil
 }
 
-func (self *ProxyAndRecordHandler) writeResponse(saved *SavedResponse, w http.ResponseWriter) {
+func (self *proxyAndRecordHandler) writeResponse(saved *savedResponse, w http.ResponseWriter) {
 	for k, vs := range saved.Headers {
 		w.Header()[k] = vs
 	}
@@ -152,7 +152,7 @@ func (self *ProxyAndRecordHandler) writeResponse(saved *SavedResponse, w http.Re
 	w.Write(saved.Body)
 }
 
-func sendSavedRequest(savedReq *SavedRequest, headerIn, headerOut []string) (*SavedResponse, error) {
+func sendSavedRequest(savedReq *savedRequest, headerIn, headerOut []string) (*savedResponse, error) {
 	req, err := http.NewRequest(savedReq.Method, savedReq.URL, bytes.NewReader(savedReq.Body))
 	if err != nil {
 		return nil, err
@@ -171,7 +171,7 @@ func sendSavedRequest(savedReq *SavedRequest, headerIn, headerOut []string) (*Sa
 	return saveResponse(resp, headerOut)
 }
 
-func (self *ProxyAndRecordHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (self *proxyAndRecordHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Special case CORS for Javascript client
 	if r.Method == "OPTIONS" {
 		w.Header().Set("access-control-allow-headers", strings.Join(self.InHeaders, ","))
@@ -186,7 +186,7 @@ func (self *ProxyAndRecordHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 		fmt.Println(self.Sequence, "Error saving request:", err)
 		return
 	}
-	savedPair, err := LoadSavedIfThere(self.Dir, self.Sequence)
+	xavedPair, err := loadSavedIfThere(self.Dir, self.Sequence)
 	if err != nil {
 		if self.FailOnMissing {
 			fmt.Println(self.Sequence, "Error loading response:", err)
@@ -198,11 +198,11 @@ func (self *ProxyAndRecordHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 				fmt.Println(self.Sequence, "Error receiving response:", err)
 				return
 			}
-			savedPair = &SavedPair{
+			xavedPair = &savedPair{
 				Request:  canonReq,
 				Response: sr,
 			}
-			err = savedPair.Write(self.Dir, self.Sequence)
+			err = xavedPair.Write(self.Dir, self.Sequence)
 			if err != nil {
 				fmt.Println(self.Sequence, "Error saving response:", err)
 				return
@@ -211,16 +211,16 @@ func (self *ProxyAndRecordHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 	} else {
 		fmt.Println(self.Sequence, "From cache", canonReq.URL)
 	}
-	if !savedPair.Request.Equals(canonReq) {
-		fmt.Println(self.Sequence, "Bad request, got", canonReq, "wanted", savedPair.Request)
+	if !xavedPair.Request.Equals(canonReq) {
+		fmt.Println(self.Sequence, "Bad request, got", canonReq, "wanted", xavedPair.Request)
 
 		return
 	}
 
-	self.writeResponse(savedPair.Response, w)
+	self.writeResponse(xavedPair.Response, w)
 	self.Sequence++
 }
 
-func RunMockServer(hostport string, pr *ProxyAndRecordHandler) {
+func runMockServer(hostport string, pr *proxyAndRecordHandler) {
 	http.ListenAndServe(hostport, pr)
 }

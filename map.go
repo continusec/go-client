@@ -98,7 +98,7 @@ func parseHeadersForProof(headers http.Header) ([][]byte, error) {
 // Get will return the value for the given key at the given treeSize. Pass continusec.Head
 // to always get the latest value. factory is normally one of RawDataEntryFactory, JsonEntryFactory or RedactedJsonEntryFactory.
 //
-// Clients normally call VerifiedGet() with a MapTreeHead returned by VerifiedLatestMapState
+// Clients normally instead call VerifiedGet() with a MapTreeHead returned by VerifiedLatestMapState as this will also perform verification of inclusion.
 func (self *VerifiableMap) Get(key []byte, treeSize int64, factory VerifiableEntryFactory) (*MapInclusionProof, error) {
 	value, headers, err := self.client.makeRequest("GET", self.path+fmt.Sprintf("/tree/%d/key/h/%s%s", treeSize, hex.EncodeToString(key), factory.Format()), nil)
 	if err != nil {
@@ -180,7 +180,7 @@ func (self *VerifiableMap) Delete(key []byte) (*AddEntryResponse, error) {
 	return &AddEntryResponse{EntryLeafHash: aer.Hash}, nil
 }
 
-// TreeHash returns map root hash for the map at the given tree size. Specify continusec.Head
+// TreeHead returns map root hash for the map at the given tree size. Specify continusec.Head
 // to receive a root hash for the latest tree size.
 func (self *VerifiableMap) TreeHead(treeSize int64) (*MapTreeHead, error) {
 	contents, _, err := self.client.makeRequest("GET", self.path+fmt.Sprintf("/tree/%d", treeSize), nil)
@@ -202,7 +202,7 @@ func (self *VerifiableMap) TreeHead(treeSize int64) (*MapTreeHead, error) {
 }
 
 // BlockUntilSize blocks until the map has caught up to a certain size. This polls
-// getTreeHead(int) until such time as a new tree hash is produced that is of at least this
+// TreeHead() until such time as a new tree hash is produced that is of at least this
 // size.
 //
 // This is intended for test use.
