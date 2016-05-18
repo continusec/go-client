@@ -20,7 +20,7 @@
 // Sample usage is as follows:
 //
 //     import (
-//         continusec "github.com/continusec/go-client"
+//         "github.com/continusec/go-client/continusec"
 //     )
 //
 //     // Construct a client

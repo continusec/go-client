@@ -31,7 +31,7 @@ func TestStuff(t *testing.T) {
 		Host:          "https://api.continusec.com",
 		InHeaders:     []string{"Authorization"},
 		OutHeaders:    []string{"Content-Type", "X-Verified-TreeSize", "X-Verified-Proof"},
-		Dir:           "responses",
+		Dir:           "testdata",
 		FailOnMissing: true,
 	})
 
