@@ -79,6 +79,7 @@ package continusec
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -147,6 +148,58 @@ func (self *Client) VerifiableLog(name string) *VerifiableLog {
 		client: self,
 		path:   "/log/" + name,
 	}
+}
+
+// LogInfo represents metadata about a log
+type LogInfo struct {
+	// Name is the name of the log
+	Name string `json:"name"`
+}
+
+type logListResponse struct {
+	Items []*LogInfo `json:"results"`
+}
+
+// MapInfo represents metadata about a map
+type MapInfo struct {
+	// Name is the name of the map
+	Name string `json:"name"`
+}
+
+type mapListResponse struct {
+	Items []*MapInfo `json:"results"`
+}
+
+// ListLogs returns a list of logs held by the account
+func (self *Client) ListLogs() ([]*LogInfo, error) {
+	contents, _, err := self.makeRequest("GET", "/logs", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp logListResponse
+	err = json.Unmarshal(contents, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp.Items, nil
+}
+
+// ListMaps returns a list of maps held by the account
+func (self *Client) ListMaps() ([]*MapInfo, error) {
+	contents, _, err := self.makeRequest("GET", "/maps", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp mapListResponse
+	err = json.Unmarshal(contents, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp.Items, nil
 }
 
 func (self *Client) makeRequest(method, path string, data []byte) ([]byte, http.Header, error) {

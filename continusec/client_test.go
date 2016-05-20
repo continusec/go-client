@@ -461,4 +461,19 @@ func TestStuff(t *testing.T) {
 		t.Fatal(3)
 	}
 
+	logList, err := client.ListLogs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(logList) != 24 {
+		t.Fatal(logList)
+	}
+
+	mapList, err := client.ListMaps()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(mapList) != 15 {
+		t.Fatal(mapList)
+	}
 }
