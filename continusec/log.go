@@ -328,7 +328,7 @@ func (self *VerifiableLog) BlockUntilPresent(leaf MerkleTreeLeaf) (*LogTreeHead,
 			switch err {
 			case nil: // we found it
 				return lth, nil
-			case ErrInvalidRange:
+			case ErrNotFound:
 				// no good, continue
 			default:
 				return nil, err
