@@ -476,4 +476,22 @@ func TestStuff(t *testing.T) {
 	if len(mapList) != 15 {
 		t.Fatal(mapList)
 	}
+
+	err = vmap.Destroy()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = vmap.Destroy()
+	if err != ErrObjectConflict {
+		t.Fatal(err)
+	}
+
+	err = log.Destroy()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = log.Destroy()
+	if err != ErrObjectConflict {
+		t.Fatal(err)
+	}
 }

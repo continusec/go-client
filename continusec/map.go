@@ -69,6 +69,16 @@ func (self *VerifiableMap) Create() error {
 	return nil
 }
 
+// Destroy will send an API call to delete this map - this operation removes it permanently,
+// and renders the name unusable again within the same account, so please use with caution.
+func (self *VerifiableMap) Destroy() error {
+	_, _, err := self.client.makeRequest("DELETE", self.path, nil)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func parseHeadersForProof(headers http.Header) ([][]byte, error) {
 	prv := make([][]byte, 256)
 	actualHeaders, ok := headers[http.CanonicalHeaderKey("X-Verified-Proof")]
