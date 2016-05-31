@@ -138,16 +138,20 @@ func (self *JsonEntry) Format() string {
 // LeafHash() returns the leaf hash for this object.
 func (self *JsonEntry) LeafHash() ([]byte, error) {
 	if self.leafHash == nil {
-		var contents interface{}
-		err := json.Unmarshal(self.JsonBytes, &contents)
-		if err != nil {
-			return nil, err
+		if len(self.JsonBytes) == 0 {
+			self.leafHash = LeafMerkleTreeHash(nil)
+		} else {
+			var contents interface{}
+			err := json.Unmarshal(self.JsonBytes, &contents)
+			if err != nil {
+				return nil, err
+			}
+			oh, err := objecthash.ObjectHashWithStdRedaction(contents)
+			if err != nil {
+				return nil, err
+			}
+			self.leafHash = LeafMerkleTreeHash(oh)
 		}
-		oh, err := objecthash.ObjectHashWithStdRedaction(contents)
-		if err != nil {
-			return nil, err
-		}
-		self.leafHash = LeafMerkleTreeHash(oh)
 	}
 	return self.leafHash, nil
 }
@@ -267,16 +271,20 @@ func (self *RedactedJsonEntry) Data() ([]byte, error) {
 // LeafHash() returns the leaf hash for this object.
 func (self *RedactedJsonEntry) LeafHash() ([]byte, error) {
 	if self.leafHash == nil {
-		var contents interface{}
-		err := json.Unmarshal(self.RedactedJsonBytes, &contents)
-		if err != nil {
-			return nil, err
+		if len(self.RedactedJsonBytes) == 0 {
+			self.leafHash = LeafMerkleTreeHash(nil)
+		} else {
+			var contents interface{}
+			err := json.Unmarshal(self.RedactedJsonBytes, &contents)
+			if err != nil {
+				return nil, err
+			}
+			oh, err := objecthash.ObjectHashWithStdRedaction(contents)
+			if err != nil {
+				return nil, err
+			}
+			self.leafHash = LeafMerkleTreeHash(oh)
 		}
-		oh, err := objecthash.ObjectHashWithStdRedaction(contents)
-		if err != nil {
-			return nil, err
-		}
-		self.leafHash = LeafMerkleTreeHash(oh)
 	}
 	return self.leafHash, nil
 }

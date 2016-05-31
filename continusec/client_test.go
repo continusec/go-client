@@ -494,4 +494,50 @@ func TestStuff(t *testing.T) {
 	if err != ErrObjectConflict {
 		t.Fatal(err)
 	}
+
+	client = NewClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6").WithBaseURL("http://localhost:8080")
+	vmap = client.VerifiableMap("mapjson")
+	ms3, err := vmap.VerifiedLatestMapState(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = vmap.VerifiedGet([]byte("stdjson"), ms3, JsonEntryFactory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = vmap.VerifiedGet([]byte("redjson"), ms3, RedactedJsonEntryFactory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = vmap.VerifiedGet([]byte("xstdjson"), ms3, JsonEntryFactory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = vmap.VerifiedGet([]byte("xredjson"), ms3, RedactedJsonEntryFactory)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	client = NewClient("7981306761429961588", "redacted").WithBaseURL("http://localhost:8080")
+	vmap = client.VerifiableMap("mapjson")
+	ms3, err = vmap.VerifiedLatestMapState(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = vmap.VerifiedGet([]byte("stdjson"), ms3, JsonEntryFactory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = vmap.VerifiedGet([]byte("redjson"), ms3, RedactedJsonEntryFactory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = vmap.VerifiedGet([]byte("xstdjson"), ms3, JsonEntryFactory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = vmap.VerifiedGet([]byte("xredjson"), ms3, RedactedJsonEntryFactory)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
