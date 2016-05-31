@@ -21,8 +21,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"golang.org/x/net/context"
 	"time"
+
+	"golang.org/x/net/context"
 )
 
 // VerifiableLog is an object used to interact with Verifiable Logs. To construct this

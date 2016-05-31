@@ -18,9 +18,10 @@ package continusec
 
 import (
 	"fmt"
-	"golang.org/x/net/context"
 	"strings"
 	"testing"
+
+	"golang.org/x/net/context"
 )
 
 // Start a server on :8080 and run a set of client library tests against it.
