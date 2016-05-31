@@ -1,13 +1,15 @@
 # go-client
 
-This repository is an open-source (Apache 2 license) client for Continusec Verifiable Data Structures.
+This is the open-source (Apache 2 License) Go client library for the Continusec Verifiable Data Structures API.
+
+To get started, see the docs at:
+
+https://www.continusec.com/documentation/client
 
 To use:
 
 `go get github.com/continusec/go-client/continusec`
 
-See the godoc for examples on how to use:
-
-https://www.continusec.com/info/clients/go
+For any questions / feedback, please open an issue in Github, or send mail to: `support@continusec.com`.
 
 Pull requests welcome!
