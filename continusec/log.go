@@ -49,9 +49,10 @@ type consistencyResponse struct {
 }
 
 type entryResponse struct {
-	Number int64  `json:"leaf_index"`
-	Hash   []byte `json:"leaf_hash"`
-	Data   []byte `json:"leaf_data"`
+	Number            int64  `json:"leaf_index"`
+	Hash              []byte `json:"leaf_hash"`
+	Data              []byte `json:"leaf_data"`
+	MutationValueJson []byte `json:"mutation_value_json"`
 }
 
 type getEntriesResponse struct {
