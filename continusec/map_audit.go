@@ -488,7 +488,7 @@ type MapAuditFunction func(ctx context.Context, idx int64, key []byte, value Ver
 //
 // To verify all every log tree head entry, pass nil for prev, which will also bypass consistency proof checking. Head must not be nil.
 //
-// Example usage: (to be added)
+// Example usage:
 //
 //	latestMapState, err := vmap.VerifiedLatestMapState(nil)
 //	if err != nil {
