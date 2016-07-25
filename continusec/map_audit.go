@@ -489,6 +489,22 @@ type MapAuditFunction func(ctx context.Context, idx int64, key []byte, value Ver
 // To verify all every log tree head entry, pass nil for prev, which will also bypass consistency proof checking. Head must not be nil.
 //
 // Example usage: (to be added)
+//
+//	latestMapState, err := vmap.VerifiedLatestMapState(nil)
+//	if err != nil {
+//		...
+//	}
+//
+//	err = vmap.VerifyMap(ctx, nil, latestMapState, continusec.RedactedJsonEntryFactory, func(ctx context.Context, idx int64, key []byte, value continusec.VerifiableEntry) error {
+//		... // verify anything you like about the content
+//		return nil
+//	})
+//	if err != nil {
+//		...
+//	}
+//
+// While suitable for small to medium maps, this requires the entire map be built in-memory
+// which may not be suitable for larger systems that will have more complex requirements.
 func (self *VerifiableMap) VerifyMap(ctx context.Context, prev *MapTreeState, head *MapTreeState, factory VerifiableEntryFactory, auditFunc MapAuditFunction) error {
 	var prevLth *LogTreeHead
 	if prev != nil {
