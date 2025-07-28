@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"golang.org/x/net/context"
 )
@@ -35,6 +36,7 @@ func TestStuff(t *testing.T) {
 		Dir:           "testdata",
 		FailOnMissing: true,
 	})
+	time.Sleep(time.Millisecond * 100) // give some time for server to start...
 	localClient := DefaultClient.WithBaseUrl("http://localhost:8080/v1")
 
 	client := &Account{Account: "7981306761429961588", Client: localClient.WithApiKey("c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6")}

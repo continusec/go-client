@@ -20,7 +20,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -98,7 +98,7 @@ func saveRequest(r *http.Request, altHost string, headerFilter []string) (*saved
 	}
 	url = altHost + url[strings.Index(url, "/"):]
 
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +121,7 @@ func saveRequest(r *http.Request, altHost string, headerFilter []string) (*saved
 }
 
 func saveResponse(resp *http.Response, headerFilter []string) (*savedResponse, error) {
-	contents, err := ioutil.ReadAll(resp.Body)
+	contents, err := io.ReadAll(resp.Body)
 	resp.Body.Close()
 	if err != nil {
 		return nil, err
