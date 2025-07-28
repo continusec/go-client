@@ -1,8 +1,6 @@
-github.com/continusec/objecthash v0.0.0-20190705044459-0b7c35f0e039 h1:u0QdrtqCMhxPWttsqxqw5eYuO2OXT0lYFXvulkoBn4Y=
-github.com/continusec/objecthash v0.0.0-20190705044459-0b7c35f0e039/go.mod h1:ysIn1J/n171frSIneTcwrwPvy0SloYdX5Vw7OfiWd8Q=
+github.com/continusec/objecthash v0.0.0-20250728010430-211b145fc905 h1:gW0nvp8piL5gP1klMkle6afCgVfh/n9iN3kVnbzksdw=
+github.com/continusec/objecthash v0.0.0-20250728010430-211b145fc905/go.mod h1:KTYVMmURRFOAlKKCI3xU+vzlHbOEXpPOhhmtYFfasMM=
 golang.org/x/net v0.42.0 h1:jzkYrhi3YQWD6MLBJcsklgQsoAcw89EcZbJw8Z614hs=
 golang.org/x/net v0.42.0/go.mod h1:FF1RA5d3u7nAYA4z2TkclSCKh68eSXtiFwcWQpPXdt8=
-golang.org/x/text v0.3.2/go.mod h1:bEr9sfX3Q8Zfm5fL9x+3itogRgK3+ptLWKqgva+5dAk=
 golang.org/x/text v0.27.0 h1:4fGWRpyh641NLlecmyl4LOe6yDdfaYNrGb2zdfo4JV4=
 golang.org/x/text v0.27.0/go.mod h1:1D28KMCvyooCX9hBiosv5Tz/+YLxj0j7XhWjpSUF7CU=
-golang.org/x/tools v0.0.0-20180917221912-90fa682c2a6e/go.mod h1:n7NCudcB/nEzxVGmLbDWY5pfWTLqBcC2KZ6jyYvM4mQ=
